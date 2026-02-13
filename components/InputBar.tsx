@@ -3,7 +3,7 @@ import { PlusIcon, MicIcon, HeadphoneIcon, SendIcon, StopIcon, EditIcon, MenuIco
 
 interface InputBarProps {
   value: string;
-  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
   onPlusClick: () => void;
   isLoading?: boolean;
   onSend?: () => void;
@@ -28,10 +28,27 @@ const InputBar: React.FC<InputBarProps> = ({
 }) => {
   const hasText = value.trim().length > 0;
   const menuRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && !isLoading && hasText && onSend) {
-      onSend();
+  // Auto-resize textarea
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (textarea) {
+      // Reset height to auto to correctly calculate new scrollHeight
+      textarea.style.height = '24px'; 
+      const newHeight = Math.min(textarea.scrollHeight, 150); // Max height 150px
+      textarea.style.height = `${newHeight}px`;
+    }
+  }, [value]);
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // Desktop: Enter sends, Shift+Enter new line
+    // Mobile: Enter usually creates new line naturally
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        if (!isLoading && hasText && onSend) {
+            onSend();
+        }
     }
   };
 
@@ -109,7 +126,8 @@ const InputBar: React.FC<InputBarProps> = ({
       )}
 
       {/* Unified Composer Container */}
-      <div className="flex items-center min-h-[52px] relative z-10 bg-[#2F2F2F] rounded-[26px] px-2 shadow-sm transition-colors duration-200">
+      {/* Changed items-center to items-end for bottom alignment as height grows */}
+      <div className="flex items-end min-h-[52px] relative z-10 bg-[#2F2F2F] rounded-[26px] px-2 shadow-sm transition-colors duration-200 py-[8px]">
         
         {/* Plus Button (Inside Pill) */}
         <button 
@@ -120,22 +138,30 @@ const InputBar: React.FC<InputBarProps> = ({
           <PlusIcon className="w-5 h-5" />
         </button>
 
-        {/* Input Field */}
-        <input
-            type="text"
+        {/* Input Field - Changed to Textarea */}
+        <textarea
+            ref={textareaRef}
             placeholder="Ask anything"
             value={value}
             onChange={onChange}
             onKeyDown={handleKeyDown}
             disabled={isLoading}
-            className="flex-1 bg-transparent text-token-text-primary h-[52px] px-3 text-[16px] placeholder-[#8E8E8E] focus:outline-none min-w-0"
+            rows={1}
+            // Logic for alignment: 
+            // py-[7px] creates correct vertical center for single line (24px line height + 14px padding = ~38px content box + borders/margins)
+            // leading-[24px] matches standard text height
+            className="flex-1 bg-transparent text-token-text-primary text-[16px] placeholder-[#8E8E8E] focus:outline-none min-w-0 resize-none max-h-[150px] overflow-y-auto px-3 py-[7px] mx-0 leading-[24px]"
+            style={{ 
+                scrollbarWidth: 'none', // Firefox
+                msOverflowStyle: 'none'  // IE
+            }}
         />
           
         {/* Right Actions: Mic or Send/Stop */}
-        <div className="flex items-center gap-1 pr-1">
+        <div className="flex items-center gap-1 pr-1 pb-[0px]"> 
              {/* Microphone (Hidden when typing) */}
              <button 
-                className={`text-token-text-primary flex items-center justify-center transition-all duration-200 ${hasText || isLoading ? 'w-0 opacity-0 overflow-hidden' : 'w-9 opacity-100'}`}
+                className={`text-token-text-primary flex items-center justify-center transition-all duration-200 h-[36px] ${hasText || isLoading ? 'w-0 opacity-0 overflow-hidden' : 'w-9 opacity-100'}`}
                 aria-label="Dictate"
              >
                 <MicIcon className="w-8 h-8" />
