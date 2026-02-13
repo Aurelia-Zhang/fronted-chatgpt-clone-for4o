@@ -124,12 +124,12 @@ export const SettingsIcon: React.FC<IconProps> = ({ className }) => (
 );
 
 // [IMG]: OpenAI Avatar Icon (High Quality SVG URL)
-// We use a CSS filter (invert) to make the black logo white for dark mode.
+// Updated to user provided WebP image without invert filter
 export const OpenAIIcon: React.FC<IconProps> = ({ className }) => (
   <img 
-    src="https://upload.wikimedia.org/wikipedia/commons/0/04/ChatGPT_logo.svg" 
+    src="https://youke.xn--y7xa690gmna.cn/s1/2026/02/13/698ecbdb1ee37.webp" 
     alt="ChatGPT" 
-    className={`${className} invert select-none pointer-events-none`}
+    className={`${className} select-none pointer-events-none`}
     draggable={false}
   />
 );
