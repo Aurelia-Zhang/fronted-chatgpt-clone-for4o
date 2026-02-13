@@ -343,11 +343,10 @@ const App: React.FC = () => {
                  contextMessages = fullThread.slice(-limit);
              }
 
-             // Auto Summary Logic (remains same, but applies to the skipped part)
+             // Auto Summary Logic
              if (apiConfig.enableAutoSummary) {
-                 // Note: With Anchor strategy, summary might duplicate the anchor context, 
-                 // so we disable anchor if summary is on, or summarize the *gap*.
-                 // For now, simpler logic: if summary is on, use standard sliding + summary.
+                 // If summary is enabled, we fallback to simple sliding to avoid context fragmentation,
+                 // or we could summarize the gap. For simplicity, we stick to sliding + summary here.
                  contextMessages = fullThread.slice(-limit);
                  
                  const truncatedMessages = fullThread.slice(0, fullThread.length - limit);
@@ -378,7 +377,6 @@ const App: React.FC = () => {
 
         // 3. Inject Time as a NEW System Message at the VERY END.
         // This ensures the prefix (System + History) remains identical to the previous request's history prefix.
-        // The dynamic time only changes the tail, which doesn't invalidate the cache for the head.
         const now = new Date();
         const timeString = now.toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
         payloadMessages.push({ 
@@ -393,7 +391,7 @@ const App: React.FC = () => {
             temperature: apiConfig.temperature,
             top_p: apiConfig.top_p,
             user: sessionId,
-            stream_options: { include_usage: true } // Request token usage
+            stream_options: { include_usage: true }
         };
 
         const response = await fetch(fetchUrl, {
