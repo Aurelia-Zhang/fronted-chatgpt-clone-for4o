@@ -11,18 +11,20 @@ interface InterfaceConfigModalProps {
 const InterfaceConfigModal: React.FC<InterfaceConfigModalProps> = ({ isOpen, onClose, initialConfig, onSave }) => {
   const [centerHeader, setCenterHeader] = useState(initialConfig.centerHeader);
   const [showAvatar, setShowAvatar] = useState(initialConfig.showAvatar);
+  const [pureBlack, setPureBlack] = useState(initialConfig.pureBlack);
 
   useEffect(() => {
     if (isOpen) {
       setCenterHeader(initialConfig.centerHeader);
       setShowAvatar(initialConfig.showAvatar);
+      setPureBlack(initialConfig.pureBlack ?? false);
     }
   }, [isOpen, initialConfig]);
 
   if (!isOpen) return null;
 
   const handleSave = () => {
-      onSave({ centerHeader, showAvatar });
+      onSave({ centerHeader, showAvatar, pureBlack });
       onClose();
   };
 
@@ -48,7 +50,6 @@ const InterfaceConfigModal: React.FC<InterfaceConfigModalProps> = ({ isOpen, onC
                             className="sr-only peer"
                         />
                         <div className="w-11 h-6 bg-[#363636] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-gray-300 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-white">
-                            {/* Inner dot logic for black/white contrast */}
                              <div className={`absolute top-[2px] left-[2px] h-5 w-5 rounded-full transition-transform ${centerHeader ? 'translate-x-full bg-black' : 'bg-white'}`}></div>
                         </div>
                     </label>
@@ -66,6 +67,22 @@ const InterfaceConfigModal: React.FC<InterfaceConfigModalProps> = ({ isOpen, onC
                         />
                         <div className="w-11 h-6 bg-[#363636] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-gray-300 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-white">
                             <div className={`absolute top-[2px] left-[2px] h-5 w-5 rounded-full transition-transform ${showAvatar ? 'translate-x-full bg-black' : 'bg-white'}`}></div>
+                        </div>
+                    </label>
+                </div>
+
+                {/* Toggle: Pure Black Mode */}
+                <div className="flex items-center justify-between">
+                    <span className="text-sm text-token-text-primary">Pure Black (AMOLED)</span>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                        <input 
+                            type="checkbox" 
+                            checked={pureBlack}
+                            onChange={(e) => setPureBlack(e.target.checked)}
+                            className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-[#363636] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-gray-300 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-white">
+                            <div className={`absolute top-[2px] left-[2px] h-5 w-5 rounded-full transition-transform ${pureBlack ? 'translate-x-full bg-black' : 'bg-white'}`}></div>
                         </div>
                     </label>
                 </div>

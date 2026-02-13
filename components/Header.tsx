@@ -3,11 +3,12 @@ import { MenuIcon, DotsIcon, ChevronRightIcon, EditIcon } from './Icons';
 
 interface HeaderProps {
     centerHeader?: boolean;
+    pureBlack?: boolean;
 }
 
-const Header: React.FC<HeaderProps> = ({ centerHeader = false }) => {
+const Header: React.FC<HeaderProps> = ({ centerHeader = false, pureBlack = false }) => {
   return (
-    <header className="sticky top-0 z-50 flex items-center px-3 h-header-height bg-token-main-surface-primary/95 backdrop-blur-sm pt-safe transition-all relative">
+    <header className={`sticky top-0 z-50 flex items-center px-3 h-header-height backdrop-blur-sm pt-safe transition-all relative ${pureBlack ? 'bg-black/95' : 'bg-token-main-surface-primary/95'}`}>
       
       {/* Left Group: Menu */}
       {/* Removed flex-1 so it doesn't push neighbors away */}

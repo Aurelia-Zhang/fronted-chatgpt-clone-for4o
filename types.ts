@@ -30,4 +30,30 @@ export interface ApiConfig {
 export interface InterfaceConfig {
     centerHeader: boolean;
     showAvatar: boolean;
+    pureBlack: boolean; // AMOLED Black mode
+}
+
+export interface LogEntry {
+    id: string;
+    timestamp: string;
+    method: string;
+    url: string;
+    requestBody: any;
+    responseStatus: number;
+    responseBody: string; // Captured text or error
+    tokens?: {
+        prompt_tokens: number;
+        completion_tokens: number;
+        total_tokens: number;
+        prompt_tokens_details?: {
+            cached_tokens?: number;
+            audio_tokens?: number;
+        };
+        completion_tokens_details?: {
+            reasoning_tokens?: number;
+            audio_tokens?: number;
+            accepted_prediction_tokens?: number;
+            rejected_prediction_tokens?: number;
+        };
+    };
 }

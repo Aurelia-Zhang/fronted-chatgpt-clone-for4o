@@ -5,8 +5,9 @@ import InputBar from './components/InputBar';
 import ApiConfigModal from './components/ApiConfigModal';
 import SystemPromptModal from './components/SystemPromptModal';
 import InterfaceConfigModal from './components/InterfaceConfigModal';
-import { OpenAIIcon } from './components/Icons'; // Import for Placeholder
-import { Message, ApiConfig, InterfaceConfig } from './types';
+import LogsModal from './components/LogsModal';
+import { OpenAIIcon } from './components/Icons'; 
+import { Message, ApiConfig, InterfaceConfig, LogEntry } from './types';
 import { parseChatHtml, exportChatToHtml } from './utils';
 
 const DEFAULT_CONFIG: ApiConfig = {
@@ -15,18 +16,17 @@ const DEFAULT_CONFIG: ApiConfig = {
   model: 'gpt-4o',
   temperature: 0.7,
   top_p: 1.0,
-  contextLimit: 40, // Increased default to improve cache hit rate (prefix matching)
+  contextLimit: 40,
   enableAutoSummary: false
 };
 
 const DEFAULT_INTERFACE_CONFIG: InterfaceConfig = {
     centerHeader: false,
-    showAvatar: false
+    showAvatar: false,
+    pureBlack: false
 };
 
 // --- Tree Helper Functions ---
-
-// Convert linear list to tree map
 const initializeTree = (linearMessages: Message[]): { map: Record<string, Message>, headId: string | null } => {
     const map: Record<string, Message> = {};
     let previousId: string | null = null;
@@ -66,10 +66,12 @@ const App: React.FC = () => {
   // Tree State
   const [messageMap, setMessageMap] = useState<Record<string, Message>>({});
   const [currentHeadId, setCurrentHeadId] = useState<string | null>(null);
-  // Add a loaded flag to prevent overwriting localStorage on initial render
   const [isLoaded, setIsLoaded] = useState(false);
   
-  // Session ID for API Caching/Tracking
+  // Logs State
+  const [logs, setLogs] = useState<LogEntry[]>([]);
+  
+  // Session ID
   const [sessionId] = useState(() => {
       const stored = localStorage.getItem('chatgpt_session_id');
       if (stored) return stored;
@@ -80,7 +82,6 @@ const App: React.FC = () => {
 
   // Initialize Data
   useEffect(() => {
-    // Try load from local storage
     const savedHistory = localStorage.getItem('chatgpt_history_v1');
     if (savedHistory) {
         try {
@@ -99,24 +100,13 @@ const App: React.FC = () => {
 
   const messages = useMemo(() => getThread(currentHeadId, messageMap), [currentHeadId, messageMap]);
 
-  // Persist messages to local storage whenever they change
   useEffect(() => {
-      if (isLoaded) {
-          if (messages.length > 0) {
-            // Save the current linear thread
-            localStorage.setItem('chatgpt_history_v1', JSON.stringify(messages));
-          } else {
-             // Optional: Clear if empty, or keep last state? 
-             // Let's not clear explicitly to avoid accidental loss, 
-             // but if user manually clears (feature not implemented yet), we would.
-          }
+      if (isLoaded && messages.length > 0) {
+        localStorage.setItem('chatgpt_history_v1', JSON.stringify(messages));
       }
   }, [messages, isLoaded]);
 
-
   const [inputValue, setInputValue] = useState('');
-  
-  // Edit State
   const [editTargetId, setEditTargetId] = useState<string | null>(null);
 
   // Modals & Menu State
@@ -124,6 +114,7 @@ const App: React.FC = () => {
   const [isConfigOpen, setIsConfigOpen] = useState(false);
   const [isSystemPromptOpen, setIsSystemPromptOpen] = useState(false);
   const [isInterfaceConfigOpen, setIsInterfaceConfigOpen] = useState(false);
+  const [isLogsOpen, setIsLogsOpen] = useState(false);
   
   // Data State
   const [apiConfig, setApiConfig] = useState<ApiConfig>(DEFAULT_CONFIG);
@@ -134,15 +125,12 @@ const App: React.FC = () => {
   const abortControllerRef = useRef<AbortController | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Load config & system prompt from localStorage
   useEffect(() => {
     const savedConfig = localStorage.getItem('chatgpt_api_config');
     if (savedConfig) {
       try {
         setApiConfig({ ...DEFAULT_CONFIG, ...JSON.parse(savedConfig) });
-      } catch (e) {
-        console.error("Failed to parse saved config");
-      }
+      } catch (e) { }
     }
     
     const savedInterfaceConfig = localStorage.getItem('chatgpt_interface_config');
@@ -173,6 +161,15 @@ const App: React.FC = () => {
     localStorage.setItem('chatgpt_system_prompt', newPrompt);
   };
 
+  const addLog = (entry: Omit<LogEntry, 'id' | 'timestamp'>) => {
+      const newLog: LogEntry = {
+          id: Date.now().toString() + Math.random(),
+          timestamp: new Date().toLocaleTimeString(),
+          ...entry
+      };
+      setLogs(prev => [...prev, newLog]);
+  };
+
   const handleStop = () => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -181,19 +178,14 @@ const App: React.FC = () => {
     }
   };
 
-  const handleMenuSelect = (option: 'api' | 'system' | 'import' | 'export' | 'interface') => {
+  const handleMenuSelect = (option: 'api' | 'system' | 'import' | 'export' | 'interface' | 'logs') => {
     setIsMenuOpen(false);
-    if (option === 'api') {
-        setIsConfigOpen(true);
-    } else if (option === 'system') {
-        setIsSystemPromptOpen(true);
-    } else if (option === 'import') {
-        fileInputRef.current?.click();
-    } else if (option === 'export') {
-        handleExportChat();
-    } else if (option === 'interface') {
-        setIsInterfaceConfigOpen(true);
-    }
+    if (option === 'api') setIsConfigOpen(true);
+    else if (option === 'system') setIsSystemPromptOpen(true);
+    else if (option === 'import') fileInputRef.current?.click();
+    else if (option === 'export') handleExportChat();
+    else if (option === 'interface') setIsInterfaceConfigOpen(true);
+    else if (option === 'logs') setIsLogsOpen(true);
   };
 
   const handleExportChat = () => {
@@ -212,7 +204,6 @@ const App: React.FC = () => {
   const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
     try {
         const text = await file.text();
         const importedMessages = parseChatHtml(text);
@@ -220,7 +211,6 @@ const App: React.FC = () => {
             const { map, headId } = initializeTree(importedMessages);
             setMessageMap(map);
             setCurrentHeadId(headId);
-            // Will automatically save to local storage via useEffect
         } else {
             alert('Failed to extract messages from the file.');
         }
@@ -233,12 +223,21 @@ const App: React.FC = () => {
   };
 
   const fetchSummary = async (messagesToSummarize: Message[]): Promise<string> => {
+      const fetchUrl = `${apiConfig.baseUrl.replace(/\/+$/, '')}/chat/completions`;
+      const summaryPrompt = "Please generate a concise summary of the following conversation history.";
+      const historyText = messagesToSummarize.map(m => `${m.role}: ${m.content}`).join('\n');
+      
+      const requestBody = {
+          model: apiConfig.model,
+          messages: [
+              { role: 'system', content: summaryPrompt },
+              { role: 'user', content: historyText }
+          ],
+          max_tokens: 500,
+          user: sessionId
+      };
+
       try {
-          const fetchUrl = `${apiConfig.baseUrl.replace(/\/+$/, '')}/chat/completions`;
-          const summaryPrompt = "Please generate a concise summary of the following conversation history to preserve context for future turns.";
-          
-          const historyText = messagesToSummarize.map(m => `${m.role}: ${m.content}`).join('\n');
-          
           const response = await fetch(fetchUrl, {
               method: 'POST',
               headers: {
@@ -246,27 +245,33 @@ const App: React.FC = () => {
                   'Authorization': `Bearer ${apiConfig.apiKey}`,
                   'X-Session-ID': sessionId
               },
-              body: JSON.stringify({
-                  model: apiConfig.model,
-                  messages: [
-                      { role: 'system', content: summaryPrompt },
-                      { role: 'user', content: historyText }
-                  ],
-                  max_tokens: 500,
-                  user: sessionId
-              })
+              body: JSON.stringify(requestBody)
           });
 
-          if (!response.ok) return "";
           const data = await response.json();
+          addLog({
+              method: 'POST (Summary)',
+              url: fetchUrl,
+              requestBody,
+              responseStatus: response.status,
+              responseBody: JSON.stringify(data).slice(0, 500) + '...'
+          });
+
           return data.choices?.[0]?.message?.content || "";
-      } catch (e) {
-          console.error("Summary generation failed", e);
+      } catch (e: any) {
+          addLog({
+              method: 'POST (Summary Failed)',
+              url: fetchUrl,
+              requestBody,
+              responseStatus: 0,
+              responseBody: e.message
+          });
           return "";
       }
   };
 
-  const generateResponse = async (currentThreadHeadId: string) => {
+  // Generate Response - Accepting overrideMap to fix closure issue
+  const generateResponse = async (currentThreadHeadId: string, overrideMap?: Record<string, Message>) => {
     if (!apiConfig.apiKey) {
       setIsConfigOpen(true);
       return;
@@ -286,6 +291,9 @@ const App: React.FC = () => {
         childrenIds: []
     };
 
+    // Update state to show loading/empty message
+    // Note: We use setMessageMap callback to ensure we are appending to the LATEST state
+    // (which should include the user message we just added)
     setMessageMap(prev => {
         const newMap = { ...prev };
         newMap[assistantMsgId] = assistantMsg;
@@ -299,18 +307,27 @@ const App: React.FC = () => {
     });
     setCurrentHeadId(assistantMsgId);
 
+    // CRITICAL FIX: Use the overrideMap if provided to get the prompt context
+    const currentMap = overrideMap || messageMap;
+    
+    const fetchUrl = `${apiConfig.baseUrl.replace(/\/+$/, '')}/chat/completions`;
+    let requestBody: any = {};
+    let finalUsage: any = null;
+
     try {
-        const fetchUrl = `${apiConfig.baseUrl.replace(/\/+$/, '')}/chat/completions`;
         const payloadMessages = [];
         
-        const fullThread = getThread(currentThreadHeadId, messageMap);
-        const limit = apiConfig.contextLimit || 40; // Default fallback also updated
+        // Use the FRESH map to get the thread
+        const fullThread = getThread(currentThreadHeadId, currentMap);
+        
+        console.log("Thread length:", fullThread.length);
+        
+        const limit = apiConfig.contextLimit || 40;
         let contextMessages = fullThread;
         let summaryInjection = "";
         
         if (fullThread.length > limit) {
              contextMessages = fullThread.slice(-limit);
-             
              if (apiConfig.enableAutoSummary) {
                  const truncatedMessages = fullThread.slice(0, fullThread.length - limit);
                  if (truncatedMessages.length > 0) {
@@ -323,54 +340,35 @@ const App: React.FC = () => {
         }
 
         const now = new Date();
-        const timeString = now.toLocaleString('zh-CN', { 
-            timeZone: 'Asia/Shanghai',
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-            hour12: false
-        });
-        
-        let finalSystemPrompt = systemPrompt;
-        
-        if (finalSystemPrompt) {
-            finalSystemPrompt += `\n\n[System Info]: Current time is ${timeString} (Asia/Shanghai).`;
-        } else {
-            finalSystemPrompt = `[System Info]: Current time is ${timeString} (Asia/Shanghai).`;
-        }
-
-        if (summaryInjection) {
-            finalSystemPrompt += summaryInjection;
-        }
+        const timeString = now.toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
+        let finalSystemPrompt = systemPrompt ? systemPrompt + `\n\n[System Info]: Current time: ${timeString}` : `[System Info]: Current time: ${timeString}`;
+        if (summaryInjection) finalSystemPrompt += summaryInjection;
 
         if (finalSystemPrompt.trim()) {
             payloadMessages.push({ role: 'system', content: finalSystemPrompt });
         }
 
-        const apiHistory = contextMessages.map(m => ({ 
-            role: m.role, 
-            content: m.content 
-        }));
+        const apiHistory = contextMessages.map(m => ({ role: m.role, content: m.content }));
         payloadMessages.push(...apiHistory);
+
+        requestBody = {
+            model: apiConfig.model,
+            messages: payloadMessages,
+            stream: true,
+            temperature: apiConfig.temperature,
+            top_p: apiConfig.top_p,
+            user: sessionId,
+            stream_options: { include_usage: true } // Request token usage
+        };
 
         const response = await fetch(fetchUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${apiConfig.apiKey}`,
-                'X-Session-ID': sessionId // Pass Session ID in Header for Proxies
+                'X-Session-ID': sessionId
             },
-            body: JSON.stringify({
-                model: apiConfig.model,
-                messages: payloadMessages,
-                stream: true,
-                temperature: apiConfig.temperature,
-                top_p: apiConfig.top_p,
-                user: sessionId // Pass Session ID in Body for OpenAI
-            }),
+            body: JSON.stringify(requestBody),
             signal: abortController.signal
         });
 
@@ -397,6 +395,12 @@ const App: React.FC = () => {
                     try {
                         const jsonStr = line.slice(6);
                         const data = JSON.parse(jsonStr);
+                        
+                        // Capture usage if available (usually last chunk)
+                        if (data.usage) {
+                            finalUsage = data.usage;
+                        }
+
                         const content = data.choices[0]?.delta?.content || '';
                         
                         if (content) {
@@ -413,18 +417,44 @@ const App: React.FC = () => {
                 }
             }
         }
+
+        // Log Success
+        addLog({
+            method: 'POST (Chat)',
+            url: fetchUrl,
+            requestBody: requestBody,
+            responseStatus: 200,
+            responseBody: accumulatedContent,
+            tokens: finalUsage
+        });
+
     } catch (error: any) {
         if (error.name === 'AbortError') {
-            console.log('Generation stopped');
+            addLog({
+                method: 'POST (Aborted)',
+                url: fetchUrl,
+                requestBody: requestBody,
+                responseStatus: 0,
+                responseBody: "User stopped generation."
+            });
         } else {
             console.error('Chat error:', error);
+            const errorMsg = `\n\n[Error: ${error.message}]`;
             setMessageMap(prev => ({
                 ...prev,
                 [assistantMsgId]: {
                     ...prev[assistantMsgId],
-                    content: prev[assistantMsgId].content + `\n\n[Error: ${error.message}]`
+                    content: prev[assistantMsgId].content + errorMsg
                 }
             }));
+            
+            addLog({
+                method: 'POST (Error)',
+                url: fetchUrl,
+                requestBody: requestBody,
+                responseStatus: 500,
+                responseBody: error.message
+            });
         }
     } finally {
         setIsLoading(false);
@@ -441,7 +471,6 @@ const App: React.FC = () => {
     setIsMenuOpen(false);
 
     let parentId = currentHeadId;
-    
     if (editTargetId) {
         const editedMsg = messageMap[editTargetId];
         parentId = editedMsg?.parentId || null;
@@ -456,43 +485,45 @@ const App: React.FC = () => {
       childrenIds: []
     };
 
-    setMessageMap(prev => {
-        const newMap = { ...prev };
-        newMap[userMsgId] = userMsg;
-        if (parentId && newMap[parentId]) {
-            const parent = { ...newMap[parentId] };
-            parent.childrenIds = [...parent.childrenIds, userMsgId];
-            parent.selectedChildId = userMsgId;
-            newMap[parentId] = parent;
-        }
-        return newMap;
-    });
+    // CORRECT FIX: Explicitly construct the new map locally
+    // This ensures we pass the fully updated state to generateResponse
+    const newMap = { ...messageMap };
+    
+    // 1. Add User Message
+    newMap[userMsgId] = userMsg;
+    
+    // 2. Link Parent
+    if (parentId && newMap[parentId]) {
+        const parent = { ...newMap[parentId] };
+        parent.childrenIds = [...parent.childrenIds, userMsgId];
+        parent.selectedChildId = userMsgId;
+        newMap[parentId] = parent;
+    }
+    
+    // 3. Update React State
+    setMessageMap(newMap);
     setCurrentHeadId(userMsgId);
 
-    await generateResponse(userMsgId);
+    // 4. Call API with the FRESH map (OverrideMap)
+    await generateResponse(userMsgId, newMap);
   };
 
   const handleEdit = (messageId: string) => {
     const msg = messageMap[messageId];
     if (!msg || msg.role !== 'user') return;
-
     setInputValue(msg.content);
     setEditTargetId(messageId);
   };
 
   const handleCopy = (content: string) => {
-    if (navigator.clipboard) {
-        navigator.clipboard.writeText(content);
-    }
+    if (navigator.clipboard) navigator.clipboard.writeText(content);
   };
 
   const handleRegenerate = (messageId: string) => {
       const msg = messageMap[messageId];
       if (!msg || msg.role !== 'assistant') return;
-
       const parentId = msg.parentId;
       if (!parentId) return;
-
       generateResponse(parentId);
   };
 
@@ -520,15 +551,12 @@ const App: React.FC = () => {
 
           let ptr = newChildId;
           let tempMap = { ...messageMap }; 
-          
           while(true) {
               const node = tempMap[ptr];
               if (!node || node.childrenIds.length === 0) break;
-              
               const nextId = node.selectedChildId || node.childrenIds[node.childrenIds.length - 1];
               ptr = nextId;
           }
-          
           setCurrentHeadId(ptr);
       }
   };
@@ -551,8 +579,8 @@ const App: React.FC = () => {
   }, []);
 
   return (
-    <div className="flex flex-col h-[100dvh] bg-token-main-surface-primary text-token-text-primary antialiased">
-      <Header centerHeader={interfaceConfig.centerHeader} />
+    <div className={`flex flex-col h-[100dvh] text-token-text-primary antialiased ${interfaceConfig.pureBlack ? 'bg-black' : 'bg-token-main-surface-primary'}`}>
+      <Header centerHeader={interfaceConfig.centerHeader} pureBlack={interfaceConfig.pureBlack} />
       
       {/* Main Container */}
       <div 
@@ -583,16 +611,14 @@ const App: React.FC = () => {
         
         {/* Input Area */}
         <div 
-            className="w-full z-40 bg-token-main-surface-primary flex-shrink-0"
+            className={`w-full z-40 flex-shrink-0 ${interfaceConfig.pureBlack ? 'bg-black' : 'bg-token-main-surface-primary'}`}
             onClick={(e) => e.stopPropagation()} 
         >
             <InputBar 
                 value={inputValue} 
                 onChange={(e) => {
                     setInputValue(e.target.value);
-                    if (e.target.value === '' && editTargetId) {
-                        setEditTargetId(null);
-                    }
+                    if (e.target.value === '' && editTargetId) setEditTargetId(null);
                 }} 
                 onPlusClick={() => setIsMenuOpen(!isMenuOpen)}
                 isLoading={isLoading}
@@ -601,17 +627,12 @@ const App: React.FC = () => {
                 isMenuOpen={isMenuOpen}
                 onMenuSelect={handleMenuSelect}
                 onCloseMenu={() => setIsMenuOpen(false)}
+                pureBlack={interfaceConfig.pureBlack}
             />
         </div>
       </div>
 
-      <input 
-        type="file" 
-        ref={fileInputRef} 
-        onChange={handleImportFile} 
-        accept=".html" 
-        style={{ display: 'none' }} 
-      />
+      <input type="file" ref={fileInputRef} onChange={handleImportFile} accept=".html" style={{ display: 'none' }} />
 
       <ApiConfigModal 
         isOpen={isConfigOpen} 
@@ -632,6 +653,13 @@ const App: React.FC = () => {
         onClose={() => setIsSystemPromptOpen(false)}
         initialPrompt={systemPrompt}
         onSave={handleSaveSystemPrompt}
+      />
+      
+      <LogsModal
+        isOpen={isLogsOpen}
+        onClose={() => setIsLogsOpen(false)}
+        logs={logs}
+        onClear={() => setLogs([])}
       />
     </div>
   );

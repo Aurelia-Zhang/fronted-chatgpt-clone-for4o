@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import { PlusIcon, MicIcon, HeadphoneIcon, SendIcon, StopIcon, EditIcon, MenuIcon, UploadIcon, DownloadIcon, SettingsIcon } from './Icons';
+import { PlusIcon, MicIcon, HeadphoneIcon, SendIcon, StopIcon, EditIcon, MenuIcon, UploadIcon, DownloadIcon, SettingsIcon, LogsIcon } from './Icons';
 
 interface InputBarProps {
   value: string;
@@ -9,8 +9,9 @@ interface InputBarProps {
   onSend?: () => void;
   onStop?: () => void;
   isMenuOpen?: boolean;
-  onMenuSelect?: (option: 'api' | 'system' | 'import' | 'export' | 'interface') => void;
+  onMenuSelect?: (option: 'api' | 'system' | 'import' | 'export' | 'interface' | 'logs') => void;
   onCloseMenu?: () => void;
+  pureBlack?: boolean;
 }
 
 const InputBar: React.FC<InputBarProps> = ({ 
@@ -22,7 +23,8 @@ const InputBar: React.FC<InputBarProps> = ({
   onStop,
   isMenuOpen = false,
   onMenuSelect,
-  onCloseMenu
+  onCloseMenu,
+  pureBlack = false
 }) => {
   const hasText = value.trim().length > 0;
   const menuRef = useRef<HTMLDivElement>(null);
@@ -48,7 +50,7 @@ const InputBar: React.FC<InputBarProps> = ({
   }, [isMenuOpen, onCloseMenu]);
 
   return (
-    <div className="w-full bg-token-main-surface-primary pb-safe relative px-3 pt-2">
+    <div className={`w-full pb-safe relative px-3 pt-2 ${pureBlack ? 'bg-black' : 'bg-token-main-surface-primary'}`}>
       
       {/* Action Menu - Popups upwards from the Plus button */}
       {isMenuOpen && (
@@ -80,6 +82,14 @@ const InputBar: React.FC<InputBarProps> = ({
                 System Prompt
             </button>
             <div className="h-[1px] bg-[#444] w-full" />
+            <button 
+                onClick={() => onMenuSelect && onMenuSelect('logs')}
+                className="flex items-center gap-3 px-4 py-3.5 text-sm text-token-text-primary hover:bg-[#3E3E3E] transition-colors text-left"
+            >
+                <div className="w-5 h-5 flex items-center justify-center opacity-70"><LogsIcon className="w-5 h-5" /></div>
+                Debug Logs
+            </button>
+             <div className="h-[1px] bg-[#444] w-full" />
             <button 
                 onClick={() => onMenuSelect && onMenuSelect('import')}
                 className="flex items-center gap-3 px-4 py-3.5 text-sm text-token-text-primary hover:bg-[#3E3E3E] transition-colors text-left"
