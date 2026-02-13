@@ -339,17 +339,31 @@ const App: React.FC = () => {
              }
         }
 
-        const now = new Date();
-        const timeString = now.toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
-        let finalSystemPrompt = systemPrompt ? systemPrompt + `\n\n[System Info]: Current time: ${timeString}` : `[System Info]: Current time: ${timeString}`;
-        if (summaryInjection) finalSystemPrompt += summaryInjection;
+        // --- CACHE OPTIMIZATION & TIME INJECTION ---
+        // 1. Keep the main System Prompt STATIC. Do NOT inject time here.
+        let finalSystemPrompt = systemPrompt || "";
+        
+        if (summaryInjection) {
+             finalSystemPrompt += summaryInjection;
+        }
 
         if (finalSystemPrompt.trim()) {
             payloadMessages.push({ role: 'system', content: finalSystemPrompt });
         }
 
+        // 2. Add History (Cached part)
         const apiHistory = contextMessages.map(m => ({ role: m.role, content: m.content }));
         payloadMessages.push(...apiHistory);
+
+        // 3. Inject Time as a NEW System Message at the VERY END.
+        // This ensures the prefix (System + History) remains identical to the previous request's history prefix.
+        // The dynamic time only changes the tail, which doesn't invalidate the cache for the head.
+        const now = new Date();
+        const timeString = now.toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
+        payloadMessages.push({ 
+            role: 'system', 
+            content: `[System Info]: Current time: ${timeString}` 
+        });
 
         requestBody = {
             model: apiConfig.model,
