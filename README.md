@@ -1,8 +1,8 @@
 # ChatGPT iOS UI Clone
 
-这是一个基于 React 和 TypeScript 构建的 ChatGPT 网页版客户端，旨在 1:1 还原 iOS 16 Pro 上的 ChatGPT 官方应用体验。
+这是一个基于 React 和 TypeScript 构建的 ChatGPT 网页版客户端，旨在 1:1 还原 ChatGPT 官方应用体验。
 
-![Preview](./preview.png)
+https://fronted-chatgpt-clone-for4o-6jes.vercel.app/
 
 ## ✨ 功能特性
 
