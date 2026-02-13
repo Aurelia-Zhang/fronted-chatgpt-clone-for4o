@@ -326,9 +326,30 @@ const App: React.FC = () => {
         let contextMessages = fullThread;
         let summaryInjection = "";
         
+        // --- ANCHOR STRATEGY FOR CACHING ---
+        // If the thread is longer than the limit, we don't just slice the end.
+        // We keep the first 2 messages (usually System/Hello exchange) as an ANCHOR.
+        // This ensures the cache prefix remains constant even as the window slides.
         if (fullThread.length > limit) {
-             contextMessages = fullThread.slice(-limit);
+             if (limit > 2 && !apiConfig.enableAutoSummary) {
+                 // Reserve 2 slots for Anchor (First 2 messages)
+                 // Use remaining slots for the most recent messages
+                 const anchor = fullThread.slice(0, 2);
+                 const remainingSlots = limit - 2;
+                 const recent = fullThread.slice(-remainingSlots);
+                 contextMessages = [...anchor, ...recent];
+             } else {
+                 // Fallback to standard sliding window if limit is too small or summary enabled
+                 contextMessages = fullThread.slice(-limit);
+             }
+
+             // Auto Summary Logic (remains same, but applies to the skipped part)
              if (apiConfig.enableAutoSummary) {
+                 // Note: With Anchor strategy, summary might duplicate the anchor context, 
+                 // so we disable anchor if summary is on, or summarize the *gap*.
+                 // For now, simpler logic: if summary is on, use standard sliding + summary.
+                 contextMessages = fullThread.slice(-limit);
+                 
                  const truncatedMessages = fullThread.slice(0, fullThread.length - limit);
                  if (truncatedMessages.length > 0) {
                      const summary = await fetchSummary(truncatedMessages);
