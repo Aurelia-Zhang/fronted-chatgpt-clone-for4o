@@ -15,7 +15,7 @@ const DEFAULT_CONFIG: ApiConfig = {
   model: 'gpt-4o',
   temperature: 0.7,
   top_p: 1.0,
-  contextLimit: 10,
+  contextLimit: 40, // Increased default to improve cache hit rate (prefix matching)
   enableAutoSummary: false
 };
 
@@ -68,6 +68,15 @@ const App: React.FC = () => {
   const [currentHeadId, setCurrentHeadId] = useState<string | null>(null);
   // Add a loaded flag to prevent overwriting localStorage on initial render
   const [isLoaded, setIsLoaded] = useState(false);
+  
+  // Session ID for API Caching/Tracking
+  const [sessionId] = useState(() => {
+      const stored = localStorage.getItem('chatgpt_session_id');
+      if (stored) return stored;
+      const newId = `user_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+      localStorage.setItem('chatgpt_session_id', newId);
+      return newId;
+  });
 
   // Initialize Data
   useEffect(() => {
@@ -234,7 +243,8 @@ const App: React.FC = () => {
               method: 'POST',
               headers: {
                   'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${apiConfig.apiKey}`
+                  'Authorization': `Bearer ${apiConfig.apiKey}`,
+                  'X-Session-ID': sessionId
               },
               body: JSON.stringify({
                   model: apiConfig.model,
@@ -242,7 +252,8 @@ const App: React.FC = () => {
                       { role: 'system', content: summaryPrompt },
                       { role: 'user', content: historyText }
                   ],
-                  max_tokens: 500
+                  max_tokens: 500,
+                  user: sessionId
               })
           });
 
@@ -293,7 +304,7 @@ const App: React.FC = () => {
         const payloadMessages = [];
         
         const fullThread = getThread(currentThreadHeadId, messageMap);
-        const limit = apiConfig.contextLimit || 10;
+        const limit = apiConfig.contextLimit || 40; // Default fallback also updated
         let contextMessages = fullThread;
         let summaryInjection = "";
         
@@ -349,14 +360,16 @@ const App: React.FC = () => {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apiConfig.apiKey}`
+                'Authorization': `Bearer ${apiConfig.apiKey}`,
+                'X-Session-ID': sessionId // Pass Session ID in Header for Proxies
             },
             body: JSON.stringify({
                 model: apiConfig.model,
                 messages: payloadMessages,
                 stream: true,
                 temperature: apiConfig.temperature,
-                top_p: apiConfig.top_p
+                top_p: apiConfig.top_p,
+                user: sessionId // Pass Session ID in Body for OpenAI
             }),
             signal: abortController.signal
         });
