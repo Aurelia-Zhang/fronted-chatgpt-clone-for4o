@@ -272,7 +272,9 @@ Your ONLY task is to summarize the conversation transcript provided below.
               method: 'POST',
               headers: {
                   'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${apiKey}`
+                  'Authorization': `Bearer ${apiKey}`,
+                  'HTTP-Referer': window.location.href, // OpenRouter header
+                  'X-Title': 'ChatGPT Clone' // OpenRouter header
               },
               body: JSON.stringify(requestBody)
           });
@@ -461,8 +463,8 @@ Your ONLY task is to summarize the conversation transcript provided below.
             stream: true,
             temperature: apiConfig.temperature,
             top_p: apiConfig.top_p,
-            user: sessionId,
-            stream_options: { include_usage: true }
+            // Removed 'user' field to prevent OpenRouter errors with upstream providers
+            stream_options: { include_usage: true } 
         };
 
         const response = await fetch(fetchUrl, {
@@ -470,7 +472,9 @@ Your ONLY task is to summarize the conversation transcript provided below.
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${apiConfig.apiKey}`,
-                'X-Session-ID': sessionId
+                // Removed X-Session-ID header as it causes 500 errors on some gateways
+                'HTTP-Referer': window.location.href, // OpenRouter header
+                'X-Title': 'ChatGPT Clone' // OpenRouter header
             },
             body: JSON.stringify(requestBody),
             signal: abortController.signal
