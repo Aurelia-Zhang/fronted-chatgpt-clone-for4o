@@ -7,6 +7,8 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <title>ChatGPT</title>
+    <!-- Highlight.js GitHub Dark Theme -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
@@ -76,6 +78,58 @@
         color: #ECECEC;
         -webkit-tap-highlight-color: transparent;
       }
+
+      /* Markdown specific styles to match ChatGPT */
+      .prose p {
+        margin-bottom: 1.25em;
+      }
+      .prose p:last-child {
+        margin-bottom: 0;
+      }
+      .prose ul, .prose ol {
+        margin-bottom: 1.25em;
+        padding-left: 1.5em;
+      }
+      .prose ul {
+        list-style-type: disc;
+      }
+      .prose ol {
+        list-style-type: decimal;
+      }
+      .prose h1, .prose h2, .prose h3, .prose h4 {
+        margin-top: 1.5em;
+        margin-bottom: 0.8em;
+        font-weight: 600;
+        line-height: 1.25;
+      }
+      .prose h1 { font-size: 1.5em; }
+      .prose h2 { font-size: 1.25em; }
+      .prose h3 { font-size: 1.1em; }
+      .prose a {
+        color: #60a5fa; /* blue-400 */
+        text-decoration: underline;
+        text-underline-offset: 2px;
+      }
+      .prose blockquote {
+        border-left: 3px solid #666;
+        padding-left: 1em;
+        margin-left: 0;
+        color: #B4B4B4;
+      }
+      .prose table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 1.25em;
+      }
+      .prose th, .prose td {
+        border: 1px solid #444;
+        padding: 0.5em;
+        text-align: left;
+      }
+      .prose th {
+        background-color: #2F2F2F;
+        font-weight: 600;
+      }
     </style>
 <script type="importmap">
 {
@@ -84,7 +138,10 @@
     "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
     "react/": "https://esm.sh/react@^19.2.4/",
     "vite": "https://esm.sh/vite@^7.3.1",
-    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.4"
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.4",
+    "react-markdown": "https://esm.sh/react-markdown@9?bundle",
+    "remark-gfm": "https://esm.sh/remark-gfm@4?bundle",
+    "rehype-highlight": "https://esm.sh/rehype-highlight@7?bundle"
   }
 }
 </script>

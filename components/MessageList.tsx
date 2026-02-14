@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { Message } from '../types';
 import { CopyIcon, SpeakerIcon, ThumbsUpIcon, ThumbsDownIcon, ShareIcon, DotsIcon, RegenerateIcon, EditIcon, NavLeftIcon, NavRightIcon, OpenAIIcon } from './Icons';
+import Markdown from './Markdown';
 
 interface MessageListProps {
   messages: Message[];
@@ -156,9 +157,9 @@ const MessageList: React.FC<MessageListProps> = ({ messages, onEdit, onCopy, onR
 
           {msg.role === 'user' ? (
             // User Message Bubble
-            <div className="flex flex-col items-end max-w-[70%]">
+            <div className="flex flex-col items-end max-w-[85%] sm:max-w-[70%]">
                 <div 
-                className="bg-[#2F2F2F] text-token-text-primary px-4 py-2.5 rounded-[18px] text-[16px] leading-relaxed break-words whitespace-pre-wrap select-none touch-manipulation active:opacity-80 transition-opacity"
+                className="bg-[#2F2F2F] text-token-text-primary px-4 py-2.5 rounded-[18px] text-[16px] leading-relaxed break-words select-none touch-manipulation active:opacity-80 transition-opacity"
                 onTouchStart={(e) => handleTouchStart(e, msg.id)}
                 onTouchEnd={handleTouchEnd}
                 onTouchMove={handleTouchMove}
@@ -167,25 +168,24 @@ const MessageList: React.FC<MessageListProps> = ({ messages, onEdit, onCopy, onR
                 onMouseLeave={handleTouchEnd}
                 onContextMenu={handleContextMenu}
                 >
-                {msg.content}
+                  <div className="whitespace-pre-wrap">
+                     {msg.content}
+                  </div>
                 </div>
                 {/* Navigation for User Messages */}
                 {renderNavigation(msg)}
             </div>
           ) : (
             // Assistant Message
-            <div className="flex flex-col w-full max-w-full gap-1">
-              {/* Message Content */}
-              <div className="text-token-text-primary text-[16px] leading-7 break-words whitespace-pre-wrap pr-4 pt-1">
-                {msg.content}
+            <div className="flex flex-col w-full max-w-full gap-1 min-w-0">
+              {/* Message Content - Using Markdown Renderer */}
+              <div className="text-token-text-primary text-[16px] leading-7 pr-4 pt-1">
+                <Markdown content={msg.content} />
               </div>
               
               {/* Action Bar */}
               <div className="flex items-center gap-2 mt-1 -ml-2 text-token-text-tertiary">
-                 {/* Navigation for AI Messages is placed IN the row or above logic. 
-                     Standard ChatGPT puts navigation on the USER message to switch branches, 
-                     and also sometimes on AI message. We will support it here too if needed. 
-                  */}
+                 {/* Navigation for AI Messages */}
                  {renderNavigation(msg)}
 
                  <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
