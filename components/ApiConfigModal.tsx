@@ -9,9 +9,16 @@ interface ApiConfigModalProps {
 }
 
 const ApiConfigModal: React.FC<ApiConfigModalProps> = ({ isOpen, onClose, initialConfig, onSave }) => {
+  // Main Config
   const [baseUrl, setBaseUrl] = useState(initialConfig.baseUrl);
   const [apiKey, setApiKey] = useState(initialConfig.apiKey);
   const [model, setModel] = useState(initialConfig.model);
+  
+  // Summary Config
+  const [summaryBaseUrl, setSummaryBaseUrl] = useState(initialConfig.summaryBaseUrl || '');
+  const [summaryApiKey, setSummaryApiKey] = useState(initialConfig.summaryApiKey || '');
+  const [summaryModel, setSummaryModel] = useState(initialConfig.summaryModel || '');
+
   const [availableModels, setAvailableModels] = useState<string[]>([]);
   
   // New Advanced Settings
@@ -24,12 +31,18 @@ const ApiConfigModal: React.FC<ApiConfigModalProps> = ({ isOpen, onClose, initia
   const [statusMessage, setStatusMessage] = useState('');
   const [showModelList, setShowModelList] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [showSummaryConfig, setShowSummaryConfig] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
       setBaseUrl(initialConfig.baseUrl);
       setApiKey(initialConfig.apiKey);
       setModel(initialConfig.model);
+      
+      setSummaryBaseUrl(initialConfig.summaryBaseUrl || '');
+      setSummaryApiKey(initialConfig.summaryApiKey || '');
+      setSummaryModel(initialConfig.summaryModel || '');
+
       setTemperature(initialConfig.temperature ?? 0.7);
       setTopP(initialConfig.top_p ?? 1.0);
       setContextLimit(initialConfig.contextLimit ?? 10);
@@ -38,6 +51,7 @@ const ApiConfigModal: React.FC<ApiConfigModalProps> = ({ isOpen, onClose, initia
       setStatus('idle');
       setStatusMessage('');
       setShowAdvanced(false);
+      setShowSummaryConfig(false);
     }
   }, [isOpen, initialConfig]);
 
@@ -81,7 +95,7 @@ const ApiConfigModal: React.FC<ApiConfigModalProps> = ({ isOpen, onClose, initia
   const testAndSave = async () => {
      if (!baseUrl || !apiKey || !model) {
       setStatus('error');
-      setStatusMessage('All fields are required');
+      setStatusMessage('Main API fields are required');
       return;
     }
 
@@ -116,6 +130,9 @@ const ApiConfigModal: React.FC<ApiConfigModalProps> = ({ isOpen, onClose, initia
           baseUrl: cleanUrl, 
           apiKey, 
           model,
+          summaryBaseUrl: summaryBaseUrl.trim(),
+          summaryApiKey: summaryApiKey.trim(),
+          summaryModel: summaryModel.trim(),
           temperature,
           top_p: topP,
           contextLimit,
@@ -137,7 +154,7 @@ const ApiConfigModal: React.FC<ApiConfigModalProps> = ({ isOpen, onClose, initia
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose}></div>
       
       {/* Modal Content */}
-      <div className="relative w-full max-w-[360px] bg-[#1E1E1E] rounded-2xl shadow-2xl border border-[#333] overflow-hidden flex flex-col animate-in fade-in zoom-in duration-200 max-h-[80vh]">
+      <div className="relative w-full max-w-[360px] bg-[#1E1E1E] rounded-2xl shadow-2xl border border-[#333] overflow-hidden flex flex-col animate-in fade-in zoom-in duration-200 max-h-[85vh]">
         <div className="p-5 flex flex-col gap-4 overflow-y-auto custom-scrollbar">
             <h2 className="text-center text-token-text-primary font-semibold text-lg">API Configuration</h2>
             
@@ -198,6 +215,71 @@ const ApiConfigModal: React.FC<ApiConfigModalProps> = ({ isOpen, onClose, initia
                 )}
             </div>
             
+            {/* Auto Summary Toggle */}
+            <div className="flex items-center justify-between mt-1">
+                <span className="text-xs text-token-text-secondary">Auto-Summarize History</span>
+                <label className="relative inline-flex items-center cursor-pointer">
+                    <input 
+                        type="checkbox" 
+                        checked={enableAutoSummary}
+                        onChange={(e) => setEnableAutoSummary(e.target.checked)}
+                        className="sr-only peer"
+                    />
+                    <div className="w-9 h-5 bg-[#363636] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-gray-300 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-white">
+                        <div className={`absolute top-[2px] left-[2px] h-4 w-4 rounded-full transition-transform ${enableAutoSummary ? 'translate-x-full bg-black' : 'bg-white'}`}></div>
+                    </div>
+                </label>
+            </div>
+            
+            {/* Summary Configuration (Collapsible) */}
+            {enableAutoSummary && (
+                <div className="flex flex-col gap-2">
+                    <button 
+                        onClick={() => setShowSummaryConfig(!showSummaryConfig)}
+                        className="text-xs text-token-text-tertiary hover:text-token-text-primary transition-colors text-left flex items-center gap-1"
+                    >
+                        <span>{showSummaryConfig ? '▼' : '▶'}</span> Configure Summary Model
+                    </button>
+                    
+                    {showSummaryConfig && (
+                         <div className="flex flex-col gap-3 bg-[#252525] p-3 rounded-lg border border-[#333]">
+                            <p className="text-[10px] text-token-text-tertiary">Leave empty to use Main API config.</p>
+                            
+                            <div className="flex flex-col gap-1">
+                                <label className="text-[10px] text-token-text-secondary">Summary API URL</label>
+                                <input 
+                                    type="text" 
+                                    value={summaryBaseUrl}
+                                    onChange={(e) => setSummaryBaseUrl(e.target.value)}
+                                    placeholder="Same as Main URL"
+                                    className="w-full bg-[#333] text-token-text-primary p-2 rounded text-xs border border-transparent focus:border-white/20 focus:outline-none"
+                                />
+                            </div>
+                            <div className="flex flex-col gap-1">
+                                <label className="text-[10px] text-token-text-secondary">Summary API Key</label>
+                                <input 
+                                    type="password" 
+                                    value={summaryApiKey}
+                                    onChange={(e) => setSummaryApiKey(e.target.value)}
+                                    placeholder="Same as Main Key"
+                                    className="w-full bg-[#333] text-token-text-primary p-2 rounded text-xs border border-transparent focus:border-white/20 focus:outline-none"
+                                />
+                            </div>
+                            <div className="flex flex-col gap-1">
+                                <label className="text-[10px] text-token-text-secondary">Summary Model (e.g. gpt-4o-mini)</label>
+                                <input 
+                                    type="text" 
+                                    value={summaryModel}
+                                    onChange={(e) => setSummaryModel(e.target.value)}
+                                    placeholder="Same as Main Model"
+                                    className="w-full bg-[#333] text-token-text-primary p-2 rounded text-xs border border-transparent focus:border-white/20 focus:outline-none"
+                                />
+                            </div>
+                         </div>
+                    )}
+                </div>
+            )}
+
             <button 
                 onClick={() => setShowAdvanced(!showAdvanced)}
                 className="text-xs text-token-text-tertiary hover:text-token-text-primary transition-colors text-left"
@@ -241,7 +323,7 @@ const ApiConfigModal: React.FC<ApiConfigModalProps> = ({ isOpen, onClose, initia
                     {/* Context Limit */}
                     <div className="flex flex-col gap-1">
                         <div className="flex justify-between text-xs text-token-text-secondary">
-                            <span>Max History Turns (Sliding Window)</span>
+                            <span>Max History Turns (Window Size)</span>
                             <span>{contextLimit}</span>
                         </div>
                         <input 
@@ -251,22 +333,6 @@ const ApiConfigModal: React.FC<ApiConfigModalProps> = ({ isOpen, onClose, initia
                             onChange={(e) => setContextLimit(parseInt(e.target.value))}
                             className="w-full h-1 bg-[#444] rounded-lg appearance-none cursor-pointer accent-white"
                         />
-                    </div>
-
-                     {/* Auto Summary Toggle (Black/White Style) */}
-                     <div className="flex items-center justify-between">
-                        <span className="text-xs text-token-text-secondary">Auto-Summarize History</span>
-                        <label className="relative inline-flex items-center cursor-pointer">
-                            <input 
-                                type="checkbox" 
-                                checked={enableAutoSummary}
-                                onChange={(e) => setEnableAutoSummary(e.target.checked)}
-                                className="sr-only peer"
-                            />
-                            <div className="w-9 h-5 bg-[#363636] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-gray-300 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-white">
-                                <div className={`absolute top-[2px] left-[2px] h-4 w-4 rounded-full transition-transform ${enableAutoSummary ? 'translate-x-full bg-black' : 'bg-white'}`}></div>
-                            </div>
-                        </label>
                     </div>
                 </div>
             )}

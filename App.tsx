@@ -16,7 +16,7 @@ const DEFAULT_CONFIG: ApiConfig = {
   model: 'gpt-4o',
   temperature: 0.7,
   top_p: 1.0,
-  contextLimit: 40,
+  contextLimit: 20, // Default window size
   enableAutoSummary: false
 };
 
@@ -122,8 +122,10 @@ const App: React.FC = () => {
   const [systemPrompt, setSystemPrompt] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   
+  // Refs
   const abortControllerRef = useRef<AbortController | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const processingSummariesRef = useRef<Set<string>>(new Set()); // Track which message IDs are currently being summarized
 
   useEffect(() => {
     const savedConfig = localStorage.getItem('chatgpt_api_config');
@@ -222,55 +224,151 @@ const App: React.FC = () => {
     }
   };
 
-  const fetchSummary = async (messagesToSummarize: Message[]): Promise<string> => {
-      const fetchUrl = `${apiConfig.baseUrl.replace(/\/+$/, '')}/chat/completions`;
-      const summaryPrompt = "Please generate a concise summary of the following conversation history.";
-      const historyText = messagesToSummarize.map(m => `${m.role}: ${m.content}`).join('\n');
+  // --- Background Summary Logic ---
+  
+  const generateBlockSummary = async (blockMessages: Message[], targetMessageId: string) => {
+      // Use summary specific config, or fall back to main config
+      const baseUrl = apiConfig.summaryBaseUrl || apiConfig.baseUrl;
+      const apiKey = apiConfig.summaryApiKey || apiConfig.apiKey;
+      const model = apiConfig.summaryModel || apiConfig.model;
       
+      if (!apiKey) return;
+
+      const fetchUrl = `${baseUrl.replace(/\/+$/, '')}/chat/completions`;
+      
+      // STRICT PROMPT: Enforce role as a summarizer with Adaptive Naming
+      const prompt = `You are a background process acting as a neutral observer.
+Your ONLY task is to summarize the conversation transcript provided below.
+- Focus on key facts, user goals, and important context for future memory.
+- ADAPTIVE NAMING: Detect how the participants address each other. If the user calls the AI "Jarvis", refer to the AI as "Jarvis" in the summary. If the AI calls the user "Master", refer to the user as "Master". Only use "User" or "Assistant" if no specific names/titles are found.
+- Do NOT simulate the conversation.
+- Do NOT reply to the user.
+- Do NOT act as the assistant in the transcript.
+- Output ONLY the concise summary paragraph.`;
+
+      // Clearer delimiters for history
+      const historyText = blockMessages.map(m => `[${m.role.toUpperCase()}]: ${m.content}`).join('\n\n');
+      const userContent = `Here is the conversation transcript to summarize:\n\n${historyText}`;
+
       const requestBody = {
-          model: apiConfig.model,
+          model: model,
           messages: [
-              { role: 'system', content: summaryPrompt },
-              { role: 'user', content: historyText }
+              { role: 'system', content: prompt },
+              { role: 'user', content: userContent }
           ],
           max_tokens: 500,
-          user: sessionId
       };
 
       try {
+          addLog({
+              method: 'POST (Background Summary)',
+              url: fetchUrl,
+              requestBody: requestBody, // FULL LOG
+              responseStatus: 0,
+              responseBody: 'Generating summary for block ending at ' + targetMessageId
+          });
+
           const response = await fetch(fetchUrl, {
               method: 'POST',
               headers: {
                   'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${apiConfig.apiKey}`,
-                  'X-Session-ID': sessionId
+                  'Authorization': `Bearer ${apiKey}`
               },
               body: JSON.stringify(requestBody)
           });
 
           const data = await response.json();
-          addLog({
-              method: 'POST (Summary)',
-              url: fetchUrl,
-              requestBody,
-              responseStatus: response.status,
-              responseBody: JSON.stringify(data).slice(0, 500) + '...'
-          });
+          const summaryText = data.choices?.[0]?.message?.content || "";
 
-          return data.choices?.[0]?.message?.content || "";
+          if (summaryText) {
+              // Update the target message with the summary
+              setMessageMap(prev => {
+                  const msg = prev[targetMessageId];
+                  if (!msg) return prev;
+                  return {
+                      ...prev,
+                      [targetMessageId]: {
+                          ...msg,
+                          summary: summaryText
+                      }
+                  };
+              });
+              
+              addLog({
+                  method: 'POST (Summary Complete)',
+                  url: fetchUrl,
+                  requestBody: {}, // Response log doesn't need request body repeated
+                  responseStatus: 200,
+                  responseBody: summaryText
+              });
+          }
       } catch (e: any) {
+          console.error("Summary Generation Failed", e);
           addLog({
               method: 'POST (Summary Failed)',
               url: fetchUrl,
-              requestBody,
-              responseStatus: 0,
+              requestBody: requestBody,
+              responseStatus: 500,
               responseBody: e.message
           });
-          return "";
+      } finally {
+          processingSummariesRef.current.delete(targetMessageId);
       }
   };
 
-  // Generate Response - Accepting overrideMap to fix closure issue
+  // Watch for thread changes to trigger background summaries
+  useEffect(() => {
+      if (!apiConfig.enableAutoSummary) return;
+
+      const runSummaryCheck = async () => {
+          const limit = apiConfig.contextLimit || 20;
+          const CHUNK_SIZE = 10; // Summarize in blocks of 10
+          
+          const thread = messages; // Current linear thread
+          if (thread.length <= limit) return; // No need to summarize if within window
+
+          // Indices to consider for summary:
+          // We keep 0,1 (Anchor)
+          // We keep [Length - Limit ... Length] (Active Window)
+          // The "Past" is [2 ... Length - Limit - 1]
+          
+          const activeWindowStart = Math.max(0, thread.length - limit);
+          const historyEndIndex = activeWindowStart - 1;
+          
+          if (historyEndIndex < 2) return; // No history to summarize
+
+          // Iterate through the history in chunks of CHUNK_SIZE
+          // Start from index 2
+          for (let i = 2; i <= historyEndIndex; i++) {
+              // We trigger a summary at the end of every CHUNK_SIZE block (e.g., at index 11, 21, 31...)
+              // OR if we reached the end of the history block and it's large enough (> 5 messages)
+              
+              const isChunkEnd = (i - 2 + 1) % CHUNK_SIZE === 0;
+              const isHistoryEnd = i === historyEndIndex;
+              
+              // Only trigger if it's a chunk end
+              if (isChunkEnd) {
+                  const targetMsg = thread[i];
+                  
+                  // If this message doesn't have a summary and isn't being processed
+                  if (!targetMsg.summary && !processingSummariesRef.current.has(targetMsg.id)) {
+                      // Summarize the previous CHUNK_SIZE messages ending at this one
+                      const startIdx = i - CHUNK_SIZE + 1;
+                      const block = thread.slice(startIdx, i + 1);
+                      
+                      processingSummariesRef.current.add(targetMsg.id);
+                      generateBlockSummary(block, targetMsg.id);
+                  }
+              }
+          }
+      };
+
+      runSummaryCheck();
+  }, [messages.length, currentHeadId, apiConfig.enableAutoSummary, apiConfig.contextLimit]);
+
+
+  // --- Main Response Generation ---
+
   const generateResponse = async (currentThreadHeadId: string, overrideMap?: Record<string, Message>) => {
     if (!apiConfig.apiKey) {
       setIsConfigOpen(true);
@@ -291,9 +389,6 @@ const App: React.FC = () => {
         childrenIds: []
     };
 
-    // Update state to show loading/empty message
-    // Note: We use setMessageMap callback to ensure we are appending to the LATEST state
-    // (which should include the user message we just added)
     setMessageMap(prev => {
         const newMap = { ...prev };
         newMap[assistantMsgId] = assistantMsg;
@@ -307,76 +402,52 @@ const App: React.FC = () => {
     });
     setCurrentHeadId(assistantMsgId);
 
-    // CRITICAL FIX: Use the overrideMap if provided to get the prompt context
     const currentMap = overrideMap || messageMap;
-    
     const fetchUrl = `${apiConfig.baseUrl.replace(/\/+$/, '')}/chat/completions`;
     let requestBody: any = {};
     let finalUsage: any = null;
 
     try {
+        const fullThread = getThread(currentThreadHeadId, currentMap);
+        const limit = apiConfig.contextLimit || 20;
         const payloadMessages = [];
         
-        // Use the FRESH map to get the thread
-        const fullThread = getThread(currentThreadHeadId, currentMap);
-        
-        console.log("Thread length:", fullThread.length);
-        
-        const limit = apiConfig.contextLimit || 40;
-        let contextMessages = fullThread;
-        let summaryInjection = "";
-        
-        // --- ANCHOR STRATEGY FOR CACHING ---
-        // If the thread is longer than the limit, we don't just slice the end.
-        // We keep the first 2 messages (usually System/Hello exchange) as an ANCHOR.
-        // This ensures the cache prefix remains constant even as the window slides.
-        if (fullThread.length > limit) {
-             if (limit > 2 && !apiConfig.enableAutoSummary) {
-                 // Reserve 2 slots for Anchor (First 2 messages)
-                 // Use remaining slots for the most recent messages
-                 const anchor = fullThread.slice(0, 2);
-                 const remainingSlots = limit - 2;
-                 const recent = fullThread.slice(-remainingSlots);
-                 contextMessages = [...anchor, ...recent];
-             } else {
-                 // Fallback to standard sliding window if limit is too small or summary enabled
-                 contextMessages = fullThread.slice(-limit);
-             }
+        // --- 1. System Prompt ---
+        if (systemPrompt.trim()) {
+            payloadMessages.push({ role: 'system', content: systemPrompt });
+        }
 
-             // Auto Summary Logic
-             if (apiConfig.enableAutoSummary) {
-                 // If summary is enabled, we fallback to simple sliding to avoid context fragmentation,
-                 // or we could summarize the gap. For simplicity, we stick to sliding + summary here.
-                 contextMessages = fullThread.slice(-limit);
-                 
-                 const truncatedMessages = fullThread.slice(0, fullThread.length - limit);
-                 if (truncatedMessages.length > 0) {
-                     const summary = await fetchSummary(truncatedMessages);
-                     if (summary) {
-                         summaryInjection = `\n\n[System Note]: Previous conversation summary: ${summary}`;
-                     }
+        // --- 2. Context Construction ---
+        if (fullThread.length <= limit) {
+             // Case A: Short conversation, send everything
+             payloadMessages.push(...fullThread.map(m => ({ role: m.role, content: m.content })));
+        } else {
+             // Case B: Long conversation with "Anchor + Summaries + Window"
+             
+             // 2.1 Anchor (First 2 messages: usually System intro & User hello)
+             const anchor = fullThread.slice(0, 2);
+             payloadMessages.push(...anchor.map(m => ({ role: m.role, content: m.content })));
+
+             // 2.2 Hidden History with Summaries
+             const windowStart = fullThread.length - limit;
+             const hiddenHistory = fullThread.slice(2, windowStart);
+             
+             // Inject summaries found in hidden history
+             hiddenHistory.forEach(msg => {
+                 if (msg.summary) {
+                     payloadMessages.push({ 
+                         role: 'system', 
+                         content: `[Previous Conversation Summary]: ${msg.summary}` 
+                     });
                  }
-             }
+             });
+
+             // 2.3 Active Window
+             const activeWindow = fullThread.slice(windowStart);
+             payloadMessages.push(...activeWindow.map(m => ({ role: m.role, content: m.content })));
         }
 
-        // --- CACHE OPTIMIZATION & TIME INJECTION ---
-        // 1. Keep the main System Prompt STATIC. Do NOT inject time here.
-        let finalSystemPrompt = systemPrompt || "";
-        
-        if (summaryInjection) {
-             finalSystemPrompt += summaryInjection;
-        }
-
-        if (finalSystemPrompt.trim()) {
-            payloadMessages.push({ role: 'system', content: finalSystemPrompt });
-        }
-
-        // 2. Add History (Cached part)
-        const apiHistory = contextMessages.map(m => ({ role: m.role, content: m.content }));
-        payloadMessages.push(...apiHistory);
-
-        // 3. Inject Time as a NEW System Message at the VERY END.
-        // This ensures the prefix (System + History) remains identical to the previous request's history prefix.
+        // --- 3. Time Injection ---
         const now = new Date();
         const timeString = now.toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
         payloadMessages.push({ 
@@ -428,14 +499,9 @@ const App: React.FC = () => {
                     try {
                         const jsonStr = line.slice(6);
                         const data = JSON.parse(jsonStr);
-                        
-                        // Capture usage if available (usually last chunk)
-                        if (data.usage) {
-                            finalUsage = data.usage;
-                        }
+                        if (data.usage) finalUsage = data.usage;
 
                         const content = data.choices[0]?.delta?.content || '';
-                        
                         if (content) {
                             accumulatedContent += content;
                             setMessageMap(prev => ({
@@ -451,11 +517,10 @@ const App: React.FC = () => {
             }
         }
 
-        // Log Success
         addLog({
             method: 'POST (Chat)',
             url: fetchUrl,
-            requestBody: requestBody,
+            requestBody: requestBody, // FULL LOG - No more truncation
             responseStatus: 200,
             responseBody: accumulatedContent,
             tokens: finalUsage
@@ -518,26 +583,17 @@ const App: React.FC = () => {
       childrenIds: []
     };
 
-    // CORRECT FIX: Explicitly construct the new map locally
-    // This ensures we pass the fully updated state to generateResponse
     const newMap = { ...messageMap };
-    
-    // 1. Add User Message
     newMap[userMsgId] = userMsg;
-    
-    // 2. Link Parent
     if (parentId && newMap[parentId]) {
         const parent = { ...newMap[parentId] };
         parent.childrenIds = [...parent.childrenIds, userMsgId];
         parent.selectedChildId = userMsgId;
         newMap[parentId] = parent;
     }
-    
-    // 3. Update React State
     setMessageMap(newMap);
     setCurrentHeadId(userMsgId);
 
-    // 4. Call API with the FRESH map (OverrideMap)
     await generateResponse(userMsgId, newMap);
   };
 
@@ -573,7 +629,6 @@ const App: React.FC = () => {
       
       if (newIndex !== index) {
           const newChildId = parent.childrenIds[newIndex];
-          
           setMessageMap(prev => ({
               ...prev,
               [parent.id]: {

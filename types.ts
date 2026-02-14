@@ -13,6 +13,9 @@ export interface Message {
   childrenIds: string[];
   // If a node has multiple children, which one is currently selected to be shown?
   selectedChildId?: string | null; 
+  
+  // The summary of the conversation chunk ending at this message
+  summary?: string; 
 }
 
 export interface ApiConfig {
@@ -20,6 +23,11 @@ export interface ApiConfig {
   apiKey: string;
   model: string;
   
+  // Summary specific config (optional, falls back to main config if empty)
+  summaryBaseUrl?: string;
+  summaryApiKey?: string;
+  summaryModel?: string;
+
   // Advanced Settings
   temperature?: number;
   top_p?: number;
