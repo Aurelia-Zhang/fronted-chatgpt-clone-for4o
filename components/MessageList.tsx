@@ -150,7 +150,7 @@ const MessageList: React.FC<MessageListProps> = ({ messages, onEdit, onCopy, onR
               <div className="flex-shrink-0 mr-3 mt-0.5">
                   <div className="w-8 h-8 rounded-full border border-token-text-tertiary/20 flex items-center justify-center bg-token-main-surface-primary overflow-hidden">
                       {/* Scaled Image: w-full h-full fills the container, scale-[2.0] zooms in to 200% */}
-                      <OpenAIIcon className="w-full h-full object-cover scale-[1.8]" />
+                      <OpenAIIcon className="w-full h-full object-contain" />
                   </div>
               </div>
           )}

@@ -20,7 +20,7 @@ const ImgIcon = ({ src, alt, className, onClick }: { src: string, alt: string, c
 // [ASSET]: Hamburger Menu Icon (Top Left) -> leftopenfolder.png
 export const MenuIcon: React.FC<IconProps> = ({ className }) => (
   <ImgIcon 
-    src="https://youke.xn--y7xa690gmna.cn/s1/2026/02/13/698ea68612095.webp" 
+    src="/icons/leftopenfolder.png"
     alt="Menu" 
     className={className} 
   />
@@ -29,7 +29,7 @@ export const MenuIcon: React.FC<IconProps> = ({ className }) => (
 // [ASSET]: New Chat / Edit Icon (Top Right) -> newchat.png
 export const EditIcon: React.FC<IconProps> = ({ className }) => (
   <ImgIcon 
-    src="https://youke.xn--y7xa690gmna.cn/s1/2026/02/13/698ea691366d4.webp" 
+    src="/icons/newchat.png"
     alt="New Chat" 
     className={className} 
   />
@@ -38,7 +38,7 @@ export const EditIcon: React.FC<IconProps> = ({ className }) => (
 // [ASSET]: Three Dots / Options Icon (Top Right & Message Actions) -> more.png
 export const DotsIcon: React.FC<IconProps> = ({ className }) => (
   <ImgIcon 
-    src="https://youke.xn--y7xa690gmna.cn/s1/2026/02/13/698ea6913b9e6.webp" 
+    src="/icons/more.png"
     alt="More" 
     className={className} 
   />
@@ -47,7 +47,7 @@ export const DotsIcon: React.FC<IconProps> = ({ className }) => (
 // [ASSET]: Model Selector Chevron -> modelselect.png (Updated)
 export const ChevronRightIcon: React.FC<IconProps> = ({ className }) => (
   <ImgIcon 
-    src="https://youke.xn--y7xa690gmna.cn/s1/2026/02/13/698ea6887291c.webp" 
+    src="/icons/modelselect.png"
     alt="Select Model" 
     className={className} 
   />
@@ -147,9 +147,9 @@ export const LogsIcon: React.FC<IconProps> = ({ className }) => (
 // Updated to user provided WebP image without invert filter
 export const OpenAIIcon: React.FC<IconProps> = ({ className }) => (
   <img 
-    src="https://youke.xn--y7xa690gmna.cn/s1/2026/02/13/698ecbdb1ee37.webp" 
+    src="/icons/openai-logo.png"
     alt="ChatGPT" 
-    className={`${className} select-none pointer-events-none`}
+    className={`${className} object-contain select-none pointer-events-none`}
     draggable={false}
   />
 );
@@ -158,7 +158,7 @@ export const OpenAIIcon: React.FC<IconProps> = ({ className }) => (
 // [ASSET]: Microphone Icon (Input Right) -> microphone.png
 export const MicIcon: React.FC<IconProps> = ({ className }) => (
   <ImgIcon 
-    src="https://youke.xn--y7xa690gmna.cn/s1/2026/02/13/698e8508ac324.webp" 
+    src="/icons/microphone.png"
     alt="Mic" 
     className={className} 
   />
@@ -167,7 +167,7 @@ export const MicIcon: React.FC<IconProps> = ({ className }) => (
 // [ASSET]: Headphone/Voice Mode Icon (Bottom Right) -> voice-right.png
 export const HeadphoneIcon: React.FC<IconProps> = ({ className }) => (
   <ImgIcon 
-    src="https://youke.xn--y7xa690gmna.cn/s1/2026/02/13/698e830a739de.webp" 
+    src="/icons/voice-right.png"
     alt="Voice Mode" 
     className={className} 
   />
@@ -176,7 +176,7 @@ export const HeadphoneIcon: React.FC<IconProps> = ({ className }) => (
 // [ASSET]: Send Icon -> send.png
 export const SendIcon: React.FC<IconProps> = ({ className }) => (
   <ImgIcon 
-    src="https://youke.xn--y7xa690gmna.cn/s1/2026/02/13/698e9ae8cf523.webp" 
+    src="/icons/send.png"
     alt="Send" 
     className={className} 
   />
@@ -185,7 +185,7 @@ export const SendIcon: React.FC<IconProps> = ({ className }) => (
 // [ASSET]: Stop Icon -> stop.png
 export const StopIcon: React.FC<IconProps> = ({ className }) => (
   <ImgIcon 
-    src="https://youke.xn--y7xa690gmna.cn/s1/2026/02/13/698e9ae62bdaf.webp" 
+    src="/icons/stop.png"
     alt="Stop" 
     className={className} 
   />
@@ -196,7 +196,7 @@ export const StopIcon: React.FC<IconProps> = ({ className }) => (
 // [ASSET]: Copy -> copy.png
 export const CopyIcon: React.FC<IconProps> = ({ className }) => (
   <ImgIcon 
-    src="https://youke.xn--y7xa690gmna.cn/s1/2026/02/13/698ea685c0ec5.webp" 
+    src="/icons/copy.png"
     alt="Copy" 
     className={className} 
   />
@@ -205,7 +205,7 @@ export const CopyIcon: React.FC<IconProps> = ({ className }) => (
 // [ASSET]: Speaker -> readaloud.png
 export const SpeakerIcon: React.FC<IconProps> = ({ className }) => (
   <ImgIcon 
-    src="https://youke.xn--y7xa690gmna.cn/s1/2026/02/13/698ea67a04391.webp" 
+    src="/icons/readaloud.png"
     alt="Read Aloud" 
     className={className} 
   />
@@ -214,7 +214,7 @@ export const SpeakerIcon: React.FC<IconProps> = ({ className }) => (
 // [ASSET]: Good -> good.png
 export const ThumbsUpIcon: React.FC<IconProps> = ({ className }) => (
   <ImgIcon 
-    src="https://youke.xn--y7xa690gmna.cn/s1/2026/02/13/698ea6860e7ce.webp" 
+    src="/icons/good.png"
     alt="Good" 
     className={className} 
   />
@@ -223,7 +223,7 @@ export const ThumbsUpIcon: React.FC<IconProps> = ({ className }) => (
 // [ASSET]: Bad -> bad.png
 export const ThumbsDownIcon: React.FC<IconProps> = ({ className }) => (
   <ImgIcon 
-    src="https://youke.xn--y7xa690gmna.cn/s1/2026/02/13/698ea6860a830.webp" 
+    src="/icons/bad.png"
     alt="Bad" 
     className={className} 
   />
@@ -232,7 +232,7 @@ export const ThumbsDownIcon: React.FC<IconProps> = ({ className }) => (
 // [ASSET]: Share -> share.png
 export const ShareIcon: React.FC<IconProps> = ({ className }) => (
   <ImgIcon 
-    src="https://youke.xn--y7xa690gmna.cn/s1/2026/02/13/698ea6911b908.webp" 
+    src="/icons/share.png"
     alt="Share" 
     className={className} 
   />
@@ -241,7 +241,7 @@ export const ShareIcon: React.FC<IconProps> = ({ className }) => (
 // [ASSET]: Regenerate -> regenerate.png
 export const RegenerateIcon: React.FC<IconProps> = ({ className }) => (
   <ImgIcon 
-    src="https://youke.xn--y7xa690gmna.cn/s1/2026/02/13/698eac81ed8c7.webp" 
+    src="/icons/regenerate.png"
     alt="Regenerate" 
     className={className} 
   />
